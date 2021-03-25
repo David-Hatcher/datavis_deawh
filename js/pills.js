@@ -1,0 +1,143 @@
+let firedOnce = false;
+const printVals = (data) =>{
+    for(let i = 0; i < data.length; i++){
+        console.log(data[i]);
+    }
+}
+
+const buildVis = (data,svg_name) => {
+    let chart = d3.select(svg_name);
+    let chart_width = $(svg_name).width();
+    let chart_height = $(svg_name).height();
+    margin = {
+        left: 90,
+        right: 40,
+        bottom: 20,
+        top: 20
+    }
+    let xDomain = [];
+    for(let i = 0; i < data.length; i++){
+        xDomain[i] = data[i].countyName;
+    }
+    let flatData = flattenData(data);
+    let y = d3.scaleLog()
+                .domain([1,d3.max(flatData, (d) => {return d.count;})]).nice()
+                .range([chart_height - margin.bottom,margin.top]);
+    let x = d3.scaleBand()
+                .domain(xDomain)
+                .range([margin.left + 20, chart_width - margin.right])
+    let y_axis = d3.axisLeft().scale(y);
+    let x_axis = d3.axisBottom().scale(x);
+    chart.append("g").call(y_axis).attr("transform","translate(" + margin.left + ",0)")
+    let xAxisTranslate = chart_height - margin.bottom;
+    chart.append("g").call(x_axis).attr("transform","translate(0," + xAxisTranslate + ")");
+
+    let colorArr = ["#0008A8","#8086F5"];
+    let colorGroups = ["oxyCount","hydCount"];
+    let color = d3.scaleOrdinal()
+                    .domain(colorGroups)
+                    .range(colorArr);
+    let stackedData = d3.stack().keys(colorGroups)(data);
+    let rect = chart.selectAll('rect')
+                    .data(flatData)
+                    .enter().append('rect')
+                    .attr('x',(d,i) =>{
+                        return x(d.countyName);
+                    })
+                    .attr('y', (d) =>{
+                        return y(d.count);
+                    })
+                    .attr('width',(chart_width/flatData.length) - 10)
+                    .attr('height',(d) =>{
+                        return chart_height - margin.bottom - y(d.count);
+                    })
+                    .attr('fill','#0008a8')
+    // let bars = chart.append("g").selectAll("g")
+    //                 .data(flatData)
+    //                     .enter().append("g")
+    //                         .attr("fill",(d) => { return color(d.key)})
+    //                         .attr("class", (d) => { return d.key;})
+    //                     .selectAll("rect")
+    //                     .data((d) => {return d;})
+    //                     .enter().append("rect")
+    //                         .attr("x",(d,i) => {
+    //                             return x(d.data.countyName);
+    //                         })
+    //                         .attr("y",(d) => {
+    //                             return y(d[1]);
+    //                         })
+    //                         .attr("width",(chart_width/data.length) - 10)
+    //                         .attr("height",(d) => {
+    //                             let yBase = d[0] < 1 ? 1 : d[0];
+    //                             return y(yBase) - y(d[1]);
+    //                         })
+    //                         .on("mouseover", (d) => {
+    //                             if(d[0] == 0){
+    //                                 text = "Oxycodone ";
+    //                                 v = d[1];
+    //                             }else{
+    //                                 text = "Hydrocodone ";
+    //                                 v = d[1] - d[0];
+    //                             }
+    //                             d3.select('#tooltip').style('opacity', 1).text(text + "Count: " + v)
+    //                         })
+    //                         .on("mouseout" , (d) =>{
+    //                             d3.select('#tooltip').style('opacity', 0)
+    //                         })
+    //                         .on("mousemove", (d) =>{
+    //                             d3.select('#tooltip')
+    //                                 .style('left', (d3.event.pageX) + 'px')
+    //                                 .style('top', (d3.event.pageY - 30) + 'px')
+    //                         });
+
+    chart.append("text")
+        .attr("transform","rotate(-90)")
+        .attr("y",0)
+        .attr("x",0 - (chart_height/2))
+        .attr("dy","1em")
+        .attr("class","y-label")
+        .style("text-anchor", "middle")
+        .style("font-weight","bold")
+        .text("Quantity Purchased");
+    if(!firedOnce){
+        let legPad = 200;
+        let legend = chart.selectAll(".legend")
+            .data(colorArr)
+            .enter().append("g")
+            .attr("class", "legend")
+            .attr("transform", (d, i) => { return "translate(30," + i * 19 + ")"; });
+        legend.append("rect")
+            .attr("x", chart_width - legPad)
+            .attr("y",5)
+            .attr("width", 18)
+            .attr("height", 18)
+            .style("fill", (d, i) => {return colorArr.slice().reverse()[i];});
+        legend.append("text")
+            .attr("x", chart_width - (legPad - 20))
+            .attr("y", 15)
+            .attr("dy", ".35em")
+            .style("text-anchor", "start")
+            .text((d, i) => {
+            switch(i){
+                case 0:
+                    return "Hydrocodone";
+                case 1:
+                    return "Oxycodone"
+            };
+        })
+        firedOnce = true;
+    }
+
+}
+
+const flattenData = (data) => {
+    let arr = [];
+    for(i of data){
+        let j = {
+            countyName : i.countyName,
+            count : i.oxyCount + i.hydCount
+        }
+        arr.push(j);
+    }
+    return arr;
+}
